@@ -17,7 +17,6 @@ np.random.seed(42)
 regions = ["서울", "부산", "대구", "인천", "광주", "대전", "울산", "제주"]
 months = [f"{m}월" for m in range(1, 13)]
 
-# 지역별 월별 매출 데이터 생성
 data = []
 for r in regions:
     sales = np.random.randint(800, 2500, size=12)
@@ -64,11 +63,10 @@ styled = region_profit.style.background_gradient(cmap="plasma")
 st.dataframe(styled, use_container_width=True)
 
 # --------------------------
-# 지도 시각화
+# 지도 시각화 (컬럼명 영어로 수정)
 # --------------------------
 st.header("🗺️ 주요 판매 지역 지도")
 
-# 각 지역의 위도/경도 임의 설정
 location_data = {
     "서울": [37.5665, 126.9780],
     "부산": [35.1796, 129.0756],
@@ -82,12 +80,13 @@ location_data = {
 
 map_df = pd.DataFrame({
     "지역": list(location_data.keys()),
-    "위도": [v[0] for v in location_data.values()],
-    "경도": [v[1] for v in location_data.values()],
+    "latitude": [v[0] for v in location_data.values()],
+    "longitude": [v[1] for v in location_data.values()],
     "매출": region_sales["매출"]
 })
 
-st.map(map_df, zoom=6)
+# st.map은 latitude, longitude 컬럼만 사용 가능
+st.map(map_df.rename(columns={"latitude": "lat", "longitude": "lon"}), zoom=6)
 
 # --------------------------
 # 전체 데이터 미리보기
