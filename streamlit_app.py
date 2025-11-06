@@ -1,14 +1,15 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import plotly.express as px
 
 # -----------------------------
-# 페이지 설정
+# 기본 설정
 # -----------------------------
-st.set_page_config(page_title="🥤 탄산수 매출 분석", page_icon="🥤", layout="wide")
+st.set_page_config(page_title="🥤 탄산수 매출 대시보드", page_icon="🥤", layout="wide")
 
 # -----------------------------
-# 더미 데이터 생성 (지역별·월별)
+# 데이터 생성
 # -----------------------------
 np.random.seed(42)
 regions = ["서울", "부산", "대구", "인천", "광주", "대전", "울산", "세종"]
@@ -16,148 +17,143 @@ months = [f"{i}월" for i in range(1, 13)]
 
 rows = []
 for region in regions:
-    base = np.random.randint(600, 1400)
+    base = np.random.randint(700, 1500)
     for m_idx, month in enumerate(months, start=1):
-        sales = base + np.random.randint(-250, 350) + int(100 * np.sin(m_idx))  # 약간 계절성 느낌
+        sales = base + np.random.randint(-300, 300) + int(80 * np.sin(m_idx))
         sales = max(sales, 0)
-        profit = int(sales * np.random.uniform(0.18, 0.36))
-        customers = np.random.randint(60, 350)
+        profit = int(sales * np.random.uniform(0.2, 0.4))
+        customers = np.random.randint(100, 400)
         rows.append({"지역": region, "월": month, "매출": sales, "이익": profit, "고객 수": customers})
 
 df = pd.DataFrame(rows)
 
-# 월 순서 보장
-month_order = months
+# -----------------------------
+# 사이드바
+# -----------------------------
+st.sidebar.header("⚙️ 필터 설정")
+selected_regions = st.sidebar.multiselect("지역 선택", options=regions, default=regions[:4])
+show_table = st.sidebar.checkbox("데이터 표 보기", value=False)
 
 # -----------------------------
-# 사이드바 (필터)
+# 헤더
 # -----------------------------
-st.sidebar.header("⚙️ 필터")
-selected_regions = st.sidebar.multiselect("지역 선택 (여러개 선택 가능)", options=regions, default=regions[:3])
-show_table = st.sidebar.checkbox("데이터표 보기", value=True)
-chart_variant = st.sidebar.selectbox("그래프 스타일 선택", ["라인/막대/영역 혼합", "간단 라인 차트"])
+st.title("🥤 탄산수 매출 대시보드")
+st.markdown("### 지역별 매출 비교와 전국 월별 추이 분석")
 
 # -----------------------------
-# 헤더 / 설명
+# 필터 적용
 # -----------------------------
-st.title("🥤 탄산수 매출 분석")
-st.markdown("지역별 매출과 전국 단위의 월별 매출(총합/증감률 등)을 함께 보여주는 예시 대시보드입니다.")
+filtered = df[df["지역"].isin(selected_regions)]
 
 # -----------------------------
-# 필터 적용 데이터
-# -----------------------------
-filtered = df[df["지역"].isin(selected_regions)].copy()
-
-# -----------------------------
-# 상단 KPI
+# KPI (요약 지표)
 # -----------------------------
 total_sales = int(filtered["매출"].sum())
 avg_profit = int(filtered["이익"].mean())
 total_customers = int(filtered["고객 수"].sum())
 
-k1, k2, k3 = st.columns(3)
-k1.metric("총 매출액 (선택한 지역)", f"{total_sales:,} 원")
-k2.metric("평균 이익 (선택한 지역)", f"{avg_profit:,} 원")
-k3.metric("총 고객 수 (선택한 지역)", f"{total_customers:,} 명")
+col1, col2, col3 = st.columns(3)
+col1.metric("총 매출액", f"{total_sales:,} 원")
+col2.metric("평균 이익", f"{avg_profit:,} 원")
+col3.metric("총 고객 수", f"{total_customers:,} 명")
 
 st.markdown("---")
 
 # -----------------------------
-# A. 지역별 월별 매출 (다양한 시각화)
+# A. 지역별 월별 매출 추이
 # -----------------------------
-st.subheader("🏙️ 지역별 월별 탄산수 매출 (지역별 비교)")
+st.subheader("🏙️ 선택 지역의 월별 매출 추이")
 
-pivot_region = filtered.pivot_table(index="월", columns="지역", values="매출", aggfunc="sum").reindex(month_order)
+fig1 = px.line(
+    filtered,
+    x="월",
+    y="매출",
+    color="지역",
+    markers=True,
+    title="지역별 월별 매출 (라인 그래프)",
+    color_discrete_sequence=px.colors.qualitative.Set2
+)
+fig1.update_layout(height=400, template="simple_white")
+st.plotly_chart(fig1, use_container_width=True)
 
-colA, colB = st.columns([2,1])
-
-with colA:
-    st.markdown("**1) 라인 차트 — 지역별 월별 추이**")
-    if chart_variant == "간단 라인 차트":
-        st.line_chart(pivot_region)
-    else:
-        st.line_chart(pivot_region)  # Streamlit 내장 라인 차트 (여러 지역 겹침)
-
-    st.markdown("**2) 막대 차트 — 동일 데이터(월별 합)를 지역별로 비교**")
-    # 월별 합을 한 번에 보여주기: 선택된 지역들의 총합을 막대그래프로
-    month_total_selected = pivot_region.sum(axis=1)
-    st.bar_chart(month_total_selected)
-
-with colB:
-    st.markdown("**3) 지역별 요약 테이블**")
-    region_summary = filtered.groupby("지역").agg({
-        "매출": ["sum", "mean"],
-        "이익": "sum",
-        "고객 수": "sum"
-    })
-    # 컬럼 평탄화
-    region_summary.columns = ["_".join(col).strip() for col in region_summary.columns.values]
-    st.dataframe(region_summary.sort_values("매출_sum", ascending=False).round(0))
+# 막대 그래프 (월별 매출 평균)
+region_month_avg = (
+    filtered.groupby(["월", "지역"])["매출"].mean().reset_index()
+)
+fig2 = px.bar(
+    region_month_avg,
+    x="월",
+    y="매출",
+    color="지역",
+    barmode="group",
+    title="지역별 월별 평균 매출 (막대 그래프)",
+    color_discrete_sequence=px.colors.qualitative.Bold
+)
+fig2.update_layout(height=400, template="plotly_white")
+st.plotly_chart(fig2, use_container_width=True)
 
 st.markdown("---")
 
 # -----------------------------
-# B. 전국 월별 매출 분석 (요청하신 내용)
+# B. 전국 월별 매출 분석
 # -----------------------------
-st.subheader("📅 전국 월별 탄산수 매출 분석 (전국 단위)")
+st.subheader("📅 전국 월별 매출 분석")
 
-# 전국 월별 총합 (항상 전체 df 기준)
-monthly_totals = df.groupby("월")["매출"].sum().reindex(month_order).reset_index()
-monthly_totals.rename(columns={"매출": "전국_매출"}, inplace=True)
+monthly_totals = (
+    df.groupby("월")["매출"].sum().reindex(months).reset_index()
+)
+monthly_totals["전월 대비 증감률(%)"] = (
+    monthly_totals["매출"].pct_change().fillna(0) * 100
+).round(1)
+monthly_totals["누적 매출"] = monthly_totals["매출"].cumsum()
 
-# 전월 대비 증감률(%) 계산
-monthly_totals["증감률(%)"] = monthly_totals["전국_매출"].pct_change().fillna(0) * 100
-monthly_totals["증감률(%)"] = monthly_totals["증감률(%)"].round(1)
+# 라인 그래프: 전국 월별 매출
+fig3 = px.line(
+    monthly_totals,
+    x="월",
+    y="매출",
+    title="전국 월별 총매출 (라인 그래프)",
+    markers=True,
+    color_discrete_sequence=["#1f77b4"]
+)
+st.plotly_chart(fig3, use_container_width=True)
 
-# 누적매출
-monthly_totals["누적매출"] = monthly_totals["전국_매출"].cumsum()
+# 증감률 막대 그래프
+fig4 = px.bar(
+    monthly_totals,
+    x="월",
+    y="전월 대비 증감률(%)",
+    title="전월 대비 증감률 (%)",
+    color="전월 대비 증감률(%)",
+    color_continuous_scale="Bluered"
+)
+st.plotly_chart(fig4, use_container_width=True)
 
-mcol1, mcol2 = st.columns(2)
-with mcol1:
-    st.markdown("**1) 전국 월별 총매출 (라인)**")
-    st.line_chart(monthly_totals.set_index("월")["전국_매출"])
-
-with mcol2:
-    st.markdown("**2) 전월 대비 증감률(%)**")
-    st.bar_chart(monthly_totals.set_index("월")["증감률(%)"])
-
-st.markdown("**3) 누적 매출(연간 누적)**")
-st.area_chart(monthly_totals.set_index("월")["누적매출"])
-
-st.markdown("**월별 매출 요약 표**")
-st.dataframe(monthly_totals.style.format({"전국_매출": "{:,.0f}", "증감률(%)":"{:.1f}", "누적매출":"{:,.0f}"}))
-
-st.markdown("---")
+# 누적 매출 영역 그래프
+fig5 = px.area(
+    monthly_totals,
+    x="월",
+    y="누적 매출",
+    title="연간 누적 매출 (면적 그래프)",
+    color_discrete_sequence=["#66c2a5"]
+)
+st.plotly_chart(fig5, use_container_width=True)
 
 # -----------------------------
-# C. 히트맵(테이블 색상 강조) — 월별·지역별 패턴
+# C. 히트맵 스타일 테이블
 # -----------------------------
-st.subheader("🔥 월별·지역별 탄산수 매출 패턴 (색상 강조 테이블)")
+st.subheader("🔥 월별·지역별 매출 패턴 (히트맵)")
 
-heat = df.pivot_table(index="월", columns="지역", values="매출", aggfunc="sum").reindex(month_order)
-# pandas Styler를 사용해 색상 그라데이션을 줌 (Streamlit에서 렌더링 가능)
-styled = heat.style.background_gradient(axis=None, cmap="Blues").format("{:,.0f}")
+heat = df.pivot_table(index="월", columns="지역", values="매출", aggfunc="sum").reindex(months)
+styled = heat.style.background_gradient(cmap="YlGnBu").format("{:,.0f}")
 st.dataframe(styled)
 
-st.markdown("---")
-
 # -----------------------------
-# D. 간단한 상관/추세 요약
-# -----------------------------
-st.subheader("🔎 간단 인사이트")
-# 월별 최고/최저
-best_month = monthly_totals.loc[monthly_totals["전국_매출"].idxmax(), "월"]
-worst_month = monthly_totals.loc[monthly_totals["전국_매출"].idxmin(), "월"]
-st.write(f"- 연중 **매출 최고 월**: {best_month}")
-st.write(f"- 연중 **매출 최저 월**: {worst_month}")
-st.write(f"- {best_month}의 전국 매출: {int(monthly_totals['전국_매출'].max()):,} 원")
-
-# -----------------------------
-# E. 원하면 보여줄 추가 자료
+# D. 데이터 표 (선택)
 # -----------------------------
 if show_table:
-    st.markdown("### 📋 원본 데이터 샘플 (정렬됨)")
-    st.dataframe(df.sort_values(["지역", "월"]).reset_index(drop=True))
+    st.markdown("### 📋 원본 데이터 보기")
+    st.dataframe(filtered.sort_values(["지역", "월"]))
 
 st.markdown("---")
-st.caption("© 2025 탄산수 매출 대시보드 (간단모드) — 외부 시각화 라이브러리 불필요")
+st.caption("© 2025 탄산수 매출 대시보드 | Plotly & Streamlit")
