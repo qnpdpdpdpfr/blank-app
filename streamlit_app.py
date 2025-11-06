@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 
 # 페이지 설정
-st.set_page_config(page_title="탄산수 매출 대시보드 (No Plotly)", page_icon="🥤", layout="wide")
+st.set_page_config(page_title="탄산수 매출 (No Plotly)", page_icon="🥤", layout="wide")
 
 # 더미 데이터 생성
 np.random.seed(42)
@@ -35,7 +35,7 @@ show_table = st.sidebar.checkbox("데이터표 보기", True)
 filtered_df = df[df["지역"].isin(selected_regions)]
 
 # 타이틀 + 설명
-st.title("🥤 탄산수 매출 대시보드 (간단모드)")
+st.title("🥤 탄산수 매출 (간단모드)")
 st.markdown("##### Plotly 미설치 환경을 위한 대체 버전 — Streamlit 내장 차트만 사용")
 
 # KPI
@@ -50,12 +50,12 @@ c3.metric("총 고객 수", f"{total_customers:,} 명")
 st.markdown("---")
 
 # 1) 월별 매출 추이 (라인)
-st.subheader("📈 월별 매출 추이")
+st.subheader("📈 월별 탄산수 매출 추이")
 pivot_sales = filtered_df.pivot_table(index="월", columns="지역", values="매출", aggfunc="sum").reindex(months)
 st.line_chart(pivot_sales)
 
 # 2) 지역별 총 매출 (막대)
-st.subheader("🏙️ 지역별 총 매출 비교")
+st.subheader("🏙️ 지역별 탄산수 총 매출 비교")
 region_sales = filtered_df.groupby("지역", as_index=False)["매출"].sum().sort_values("매출", ascending=False)
 st.bar_chart(region_sales.set_index("지역"))
 
@@ -74,7 +74,7 @@ scatter_like = filtered_df.groupby("지역").agg({"매출": "mean", "이익": "m
 st.dataframe(scatter_like)
 
 # 5) 히트맵 대신 색상 강조된 테이블(월별·지역별 매출)
-st.subheader("🔥 월별·지역별 매출 (테이블)")
+st.subheader("🔥 월별·지역별 탄산수 매출 (테이블)")
 heat = df.pivot_table(index="월", columns="지역", values="매출", aggfunc="sum").reindex(months)
 # 숫자 포맷
 st.dataframe(heat.style.format("{:,.0f}"))
