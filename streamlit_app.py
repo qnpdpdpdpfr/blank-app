@@ -1,10 +1,9 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
 
 # 제목
-st.title("📈 지역별 매출 대시보드")
+st.title("📈 지역별 매출 대시보드 (matplotlib 없음)")
 
 # 더미 데이터 생성
 np.random.seed(42)
@@ -13,20 +12,12 @@ months = [f"{i}월" for i in range(1, 13)]
 data = {region: np.random.randint(100, 1000, size=12) for region in regions}
 df = pd.DataFrame(data, index=months)
 
-# -----------------------
 # 사이드바 설정
-# -----------------------
 st.sidebar.header("⚙️ 설정")
-
-# 지역 선택
 selected_region = st.sidebar.selectbox("지역 선택", regions)
-
-# 차트 타입 선택
 chart_type = st.sidebar.radio("차트 종류 선택", ["라인 차트", "막대 차트"])
 
-# -----------------------
-# 본문 내용
-# -----------------------
+# 본문
 st.subheader(f"📍 {selected_region}의 월별 매출 현황")
 
 if chart_type == "라인 차트":
@@ -34,13 +25,11 @@ if chart_type == "라인 차트":
 else:
     st.bar_chart(df[selected_region])
 
-# 평균 비교
+# 지역별 평균 비교
 st.subheader("📊 지역별 평균 매출 비교")
 st.bar_chart(df.mean())
 
-# -----------------------
 # 통계 요약
-# -----------------------
 st.subheader("📋 통계 요약")
 summary = df.describe().T
 st.dataframe(summary)
