@@ -1,8 +1,1 @@
-streamlit
-pandas
-numpy
-scikit-learn
-plotly
-matplotlib
-seaborn
-matplotlib.font_manager
+
