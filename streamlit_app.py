@@ -2,6 +2,13 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+import matplotlib.font_manager as fm
+
+# --------------------------
+# 한글 폰트 설정 (여기 핵심!!)
+# --------------------------
+plt.rcParams['font.family'] = 'Malgun Gothic'  # 윈도우
+plt.rcParams['axes.unicode_minus'] = False  
 
 # --------------------------
 # 대시보드 제목
