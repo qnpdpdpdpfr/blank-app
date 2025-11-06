@@ -1,16 +1,11 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import plotly.express as px
 
-# -----------------------------
 # 페이지 설정
-# -----------------------------
-st.set_page_config(page_title="탄산수 매출 대시보드", page_icon="🥤", layout="wide")
+st.set_page_config(page_title="탄산수 매출 대시보드 (No Plotly)", page_icon="🥤", layout="wide")
 
-# -----------------------------
 # 더미 데이터 생성
-# -----------------------------
 np.random.seed(42)
 regions = ["서울", "부산", "대구", "인천", "광주", "대전", "울산", "세종"]
 months = [f"{i}월" for i in range(1, 13)]
@@ -32,93 +27,62 @@ for region in regions:
 
 df = pd.DataFrame(data)
 
-# -----------------------------
-# 사이드바 설정
-# -----------------------------
+# 사이드바
 st.sidebar.header("⚙️ 필터 설정")
 selected_regions = st.sidebar.multiselect("지역 선택", regions, default=["서울", "부산"])
-chart_theme = st.sidebar.selectbox("차트 스타일", ["plotly", "streamlit 기본"])
 show_table = st.sidebar.checkbox("데이터표 보기", True)
 
 filtered_df = df[df["지역"].isin(selected_regions)]
 
-# -----------------------------
-# 메인 타이틀
-# -----------------------------
-st.title("🥤 탄산수 매출 대시보드")
-st.markdown("##### 2025년 전국 탄산수 판매 데이터를 기반으로 한 예시 대시보드입니다.")
+# 타이틀 + 설명
+st.title("🥤 탄산수 매출 대시보드 (간단모드)")
+st.markdown("##### Plotly 미설치 환경을 위한 대체 버전 — Streamlit 내장 차트만 사용")
 
-# -----------------------------
-# KPI 카드
-# -----------------------------
+# KPI
 total_sales = int(filtered_df["매출"].sum())
 avg_profit = int(filtered_df["이익"].mean())
 total_customers = int(filtered_df["고객 수"].sum())
 
-col1, col2, col3 = st.columns(3)
-col1.metric("총 매출액", f"{total_sales:,} 원")
-col2.metric("평균 이익", f"{avg_profit:,} 원")
-col3.metric("총 고객 수", f"{total_customers:,} 명")
-
+c1, c2, c3 = st.columns(3)
+c1.metric("총 매출액", f"{total_sales:,} 원")
+c2.metric("평균 이익", f"{avg_profit:,} 원")
+c3.metric("총 고객 수", f"{total_customers:,} 명")
 st.markdown("---")
 
-# -----------------------------
-# 시각화 1️⃣ : 월별 매출 추이
-# -----------------------------
+# 1) 월별 매출 추이 (라인)
 st.subheader("📈 월별 매출 추이")
+pivot_sales = filtered_df.pivot_table(index="월", columns="지역", values="매출", aggfunc="sum").reindex(months)
+st.line_chart(pivot_sales)
 
-if chart_theme == "plotly":
-    fig1 = px.line(filtered_df, x="월", y="매출", color="지역", markers=True, title="월별 탄산수 매출 추이")
-    st.plotly_chart(fig1, use_container_width=True)
-else:
-    st.line_chart(filtered_df.pivot(index="월", columns="지역", values="매출"))
-
-# -----------------------------
-# 시각화 2️⃣ : 지역별 총 매출 비교 (막대그래프)
-# -----------------------------
+# 2) 지역별 총 매출 (막대)
 st.subheader("🏙️ 지역별 총 매출 비교")
+region_sales = filtered_df.groupby("지역", as_index=False)["매출"].sum().sort_values("매출", ascending=False)
+st.bar_chart(region_sales.set_index("지역"))
 
-region_sales = filtered_df.groupby("지역")["매출"].sum().reset_index()
-if chart_theme == "plotly":
-    fig2 = px.bar(region_sales, x="지역", y="매출", color="지역", title="지역별 총 매출")
-    st.plotly_chart(fig2, use_container_width=True)
-else:
-    st.bar_chart(region_sales.set_index("지역"))
+# 3) 이익 비중 (간단한 막대 비율로 표시 — 파이 대신)
+st.subheader("💰 지역별 이익 비중 (막대 비율)")
+region_profit = filtered_df.groupby("지역", as_index=False)["이익"].sum().sort_values("이익", ascending=False)
+# 이익 비율 컬럼 추가
+region_profit["비율(%)"] = (region_profit["이익"] / region_profit["이익"].sum() * 100).round(1)
+st.dataframe(region_profit.set_index("지역"))
 
-# -----------------------------
-# 시각화 3️⃣ : 이익 비중 (파이차트)
-# -----------------------------
-st.subheader("💰 지역별 이익 비중")
+st.bar_chart(region_profit.set_index("지역")["이익"])
 
-region_profit = filtered_df.groupby("지역")["이익"].sum().reset_index()
-fig3 = px.pie(region_profit, names="지역", values="이익", title="지역별 이익 비율")
-st.plotly_chart(fig3, use_container_width=True)
+# 4) 매출-이익 관계 (간단 표 형태로 상관성 확인)
+st.subheader("📊 매출-이익 요약 (지역별)")
+scatter_like = filtered_df.groupby("지역").agg({"매출": "mean", "이익": "mean", "고객 수": "mean"}).round(0)
+st.dataframe(scatter_like)
 
-# -----------------------------
-# 시각화 4️⃣ : 매출-이익 관계 (산점도)
-# -----------------------------
-st.subheader("📊 매출과 이익의 관계")
+# 5) 히트맵 대신 색상 강조된 테이블(월별·지역별 매출)
+st.subheader("🔥 월별·지역별 매출 (테이블)")
+heat = df.pivot_table(index="월", columns="지역", values="매출", aggfunc="sum").reindex(months)
+# 숫자 포맷
+st.dataframe(heat.style.format("{:,.0f}"))
 
-fig4 = px.scatter(filtered_df, x="매출", y="이익", color="지역", size="고객 수",
-                  hover_data=["월"], title="매출 대비 이익 관계")
-st.plotly_chart(fig4, use_container_width=True)
-
-# -----------------------------
-# 시각화 5️⃣ : 히트맵 (월별 매출 패턴)
-# -----------------------------
-st.subheader("🔥 월별·지역별 매출 히트맵")
-
-heatmap_data = df.pivot_table(index="월", columns="지역", values="매출")
-fig5 = px.imshow(heatmap_data, text_auto=True, color_continuous_scale="Blues",
-                 title="월별·지역별 매출 히트맵")
-st.plotly_chart(fig5, use_container_width=True)
-
-# -----------------------------
-# 데이터 표
-# -----------------------------
+# 데이터표 옵션
 if show_table:
     st.markdown("### 📋 상세 데이터")
-    st.dataframe(filtered_df.sort_values(by=["지역", "월"]))
+    st.dataframe(filtered_df.sort_values(by=["지역", "월"]).reset_index(drop=True))
 
 st.markdown("---")
-st.caption("© 2025 탄산수 매출 분석 | Streamlit + Plotly Dashboard Example")
+st.caption("© 2025 탄산수 매출 예시 (간단모드)")
