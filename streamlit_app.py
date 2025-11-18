@@ -5,7 +5,11 @@ import altair as alt
 # Load data
 @st.cache_data
 def load_data():
-    df = pd.read_csv("STCS_우리나라기후평년값_DD_20251118211755.csv", encoding="cp949", errors="replace")
+    import chardet
+    with open("STCS_우리나라기후평년값_DD_20251118211755.csv", "rb") as f:
+        raw = f.read()
+        enc = chardet.detect(raw)["encoding"]
+    df = pd.read_csv("STCS_우리나라기후평년값_DD_20251118211755.csv", encoding=enc, errors="replace")
     return df
 
 data = load_data()
